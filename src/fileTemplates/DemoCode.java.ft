@@ -1,0 +1,27 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")
+package ${PACKAGE_NAME};
+#end
+
+/**
+ * ${DESCRIPTION}
+ *
+ * @author ${USER}
+ * Create In ${DATE} ${TIME}
+ */
+public class ${DOMAIN} {
+
+}
+
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")
+package ${PACKAGE_NAME};
+#end
+
+import com.ygsoft.esc.cwjy.common.domain.model.EscGenBizEntity;
+import javax.persistence.Entity; 
+import javax.persistence.Table;
+        
+@Entity @Table(name = "T_${DOMAIN}") 
+public class ${DOMAIN} extends EscGenBizEntity {
+    
+}
+

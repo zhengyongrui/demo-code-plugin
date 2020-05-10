@@ -1,0 +1,32 @@
+<idea-plugin>
+  <id>com.zyr.demo.code.plugin</id>
+  <name>DemoCodePlugin</name>
+  <version>1.0</version>
+  <vendor email="zyr@outlook.com" url="https://www.zhengyongrui.com">牙子</vendor>
+
+  <description>
+    根据demo代码创建代码插件，用于快速创建规定的代码，减少重复工作量..................
+  </description>
+
+  <!-- <change-notes></change-notes>-->
+
+  <!-- please see https://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
+  <idea-version since-build="171.0"/>
+
+  <!-- please see https://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+       on how to target different products -->
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.java</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+  </extensions>
+
+  <actions>
+    <!-- Add your actions here -->
+    <action id="DemoCodeCopy" class="actions.copy.DemoCodeCopyAction" text="根据Demo创建代码" description="Create code from demo">
+      <add-to-group group-id="NewGroup" anchor="first"/>
+    </action>
+  </actions>
+
+</idea-plugin>
