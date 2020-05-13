@@ -1,7 +1,7 @@
 <idea-plugin>
   <id>com.zyr.demo.code.plugin</id>
   <name>DemoCodePlugin</name>
-  <version>1.0</version>
+  <version>1.1</version>
   <vendor email="zyr@outlook.com" url="https://www.zhengyongrui.com">牙子</vendor>
 
   <description>
@@ -24,7 +24,7 @@
 
   <actions>
     <!-- Add your actions here -->
-    <action id="DemoCodeCopy" class="actions.copy.DemoCodeCopyAction" text="根据Demo创建代码" description="Create code from demo">
+    <action id="DemoCodeCopy" class="actions.copy.DemoCodeCopyAction" text="根据Demo创建代码" description="Create code from demo" icon="/icons/zyr_logo.png">
       <add-to-group group-id="NewGroup" anchor="first"/>
     </action>
   </actions>

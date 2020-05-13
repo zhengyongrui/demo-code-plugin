@@ -1,6 +1,8 @@
 package actions.copy;
 
 import actions.config.DemoCodeConfig;
+import actions.config.PluginConfigConst;
+import actions.config.TemplateCodeConfig;
 import com.google.gson.Gson;
 import com.intellij.ide.IdeView;
 import com.intellij.ide.fileTemplates.FileTemplate;
@@ -42,35 +44,38 @@ public class DemoCodeCopyAction extends AnAction {
 
     private AnActionEvent anActionEvent;
 
+    private TemplateCodeConfig templateCodeConfig;
+
     private DemoCodeConfig demoCodeConfig;
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent anActionEvent) {
         setAnActionEvent(anActionEvent);
         setDemoCodeConfig();
-        DemoCodeCopyDialogWrapper dialogWrapper = new DemoCodeCopyDialogWrapper();
+        DemoCodeCopyDialogWrapper dialogWrapper = new DemoCodeCopyDialogWrapper(this.demoCodeConfig);
         dialogWrapper.show();
         if (dialogWrapper.isOK()) {
-            final String pageName = dialogWrapper.getPackageName();
-            final String domain = dialogWrapper.getDomain();
-            final String description = dialogWrapper.getDescription();
-            exciteCopy(anActionEvent, pageName, description, domain);
+            Map<String, String> templateParamMap = dialogWrapper.getTemplateParamMap();
+            this.templateCodeConfig = dialogWrapper.getSelectTemplateCodeConfig();
+            exciteCopy(anActionEvent, templateParamMap);
         }
     }
 
     private void setDemoCodeConfig() {
-        String demoCodeConfigPath = PropertiesComponent.getInstance().getValue("DemoCodeConfigPath");
+        String demoCodeConfigPath = PropertiesComponent.getInstance().getValue(PluginConfigConst.DEMO_CODE_CONFIG_PATH);
         if (StringUtils.isBlank(demoCodeConfigPath)) {
             demoCodeConfigPath = showFileChooser();
-            PropertiesComponent.getInstance().setValue("DemoCodeConfigPath", demoCodeConfigPath);
+            PropertiesComponent.getInstance().setValue(PluginConfigConst.DEMO_CODE_CONFIG_PATH, demoCodeConfigPath);
         }
         try {
             StringBuilder demoCodeConfigJsonString = new StringBuilder();
             FileInputStream is = new FileInputStream(new File(demoCodeConfigPath));
             this.demoCodeConfig = transferDemoCodeConfig(demoCodeConfigJsonString, is);
-        } catch (IOException e) {
-            Messages.showMessageDialog("请选择正确的配置文件!", "Warning", Messages.getWarningIcon());
-            throw new IllegalArgumentException("获取配置文件出错", e);
+        } catch (Exception e) {
+            final String warningMessage = "获取配置文件出错!";
+            Messages.showMessageDialog(warningMessage, "Warning", Messages.getWarningIcon());
+            PropertiesComponent.getInstance().unsetValue(PluginConfigConst.DEMO_CODE_CONFIG_PATH);
+            throw new IllegalArgumentException(warningMessage, e);
         }
     }
 
@@ -81,12 +86,13 @@ public class DemoCodeCopyAction extends AnAction {
             demoCodeConfigJsonString.append(s);
         }
         Gson gson = new Gson();
-        return gson.fromJson(demoCodeConfigJsonString.toString(), DemoCodeConfig.class);
+        DemoCodeConfig demoCodeConfig = gson.fromJson(demoCodeConfigJsonString.toString(), DemoCodeConfig.class);
+        return demoCodeConfig;
     }
 
     private String showFileChooser() {
         JFileChooser jfc = new JFileChooser();
-        jfc.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES);
+        jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
         jfc.showDialog(new JLabel(), "请选择代码样例配置文件");
         File file = jfc.getSelectedFile();
         if (file != null && file.isFile()) {
@@ -99,19 +105,17 @@ public class DemoCodeCopyAction extends AnAction {
     /**
      * 执行代码拷贝
      *
-     * @param pageName    包名
-     * @param domain      领域名称
-     * @param description 描述
+     * @param templateParamMap 模板参数
      */
-    private void exciteCopy(AnActionEvent actionEvent, String pageName, String description, String domain) {
-        List<CreateJavaFileInfo> javaFileInfoList = initCreateJavaFileInfo(pageName, description, domain);
+    private void exciteCopy(AnActionEvent actionEvent, Map<String, String> templateParamMap) {
+        List<CreateJavaFileInfo> javaFileInfoList = initCreateJavaFileInfo(templateParamMap);
         boolean isOverrideFile = checkRepeatFile(javaFileInfoList);
         if (!isOverrideFile) {
             this.actionPerformed(actionEvent);
             return;
         }
         createJavaFile(actionEvent, javaFileInfoList);
-        Messages.showMessageDialog(domain + "创建完成!", "Information", Messages.getInformationIcon());
+        Messages.showMessageDialog("代码创建完成!", "Information", Messages.getInformationIcon());
     }
 
     /**
@@ -126,9 +130,9 @@ public class DemoCodeCopyAction extends AnAction {
         for (CreateJavaFileInfo createJavaFileInfo : javaFileInfoList) {
             Map<String, String> map = new HashMap<>(3);
             map.put("ROOT_PACKAGE_NAME", createJavaFileInfo.getRootPackageName());
-            map.put("DOMAIN", createJavaFileInfo.getDomain());
-            map.put("DOMAIN_LOWERCASE", createJavaFileInfo.getDomainLowercase());
-            map.put("DESCRIPTION", createJavaFileInfo.getDescription());
+            for (Map.Entry<String, String> templateParamEntry : createJavaFileInfo.getTemplateParamMap().entrySet()) {
+                map.put(templateParamEntry.getKey(), templateParamEntry.getValue());
+            }
             Application application = ApplicationManager.getApplication();
             application.runWriteAction(() -> {
                 try {
@@ -183,28 +187,24 @@ public class DemoCodeCopyAction extends AnAction {
     /**
      * 初始化要创建java文件的列表
      *
-     * @param pageName    包名
-     * @param domain      领域模型
-     * @param description 描述
+     * @param templateParamMap 模板参数
      * @return 。
      */
-    private List<CreateJavaFileInfo> initCreateJavaFileInfo(String pageName, String description, String domain) {
-        DemoCodeConfig demoCodeConfig = this.demoCodeConfig;
+    private List<CreateJavaFileInfo> initCreateJavaFileInfo(Map<String, String> templateParamMap) {
+        TemplateCodeConfig templateCodeConfig = this.templateCodeConfig;
         // 根目录包名
         String rootPath = getCurrentDirectory().getVirtualFile().getPath();
         String rootPackageName = rootPath.replaceAll("[\\\\/]", ".").replaceAll(".*src.main.java", "").replaceAll(".*src", "");
         rootPackageName = rootPackageName.indexOf(".") == 0 ? rootPackageName.substring(1) : rootPackageName;
-        final String finalRootPackageName = StringUtils.isNotBlank(rootPackageName) && StringUtils.isNotBlank(pageName) ? rootPackageName + "." + pageName : rootPackageName + pageName;
-        List<CreateJavaFileInfo> javaFileInfoList = demoCodeConfig.getFileTemplateConfigList().stream().map(fileTemplateConfig -> {
+        final String finalRootPackageName = rootPackageName;
+        List<CreateJavaFileInfo> javaFileInfoList = templateCodeConfig.getFileTemplateConfigList().stream().map(fileTemplateConfig -> {
             CreateJavaFileInfo createJavaFileInfo = new CreateJavaFileInfo();
-            createJavaFileInfo.setDomain(domain);
-            createJavaFileInfo.setDescription(description);
+            createJavaFileInfo.setTemplateParamMap(templateParamMap);
             createJavaFileInfo.setRootPackageName(finalRootPackageName);
             // 保存模板信息
             createJavaFileInfo.setFileTemplateText(fileTemplateConfig.getText());
             // 组合包名
             String templatePackageName = fileTemplateConfig.getPackageName();
-            templatePackageName = StringUtils.isNotBlank(pageName) && StringUtils.isNotBlank(templatePackageName) ? pageName + "." + templatePackageName : pageName + templatePackageName;
             // 转换为路径
             String templatePackagePath = templatePackageName.replaceAll("\\.", "/");
             String createDirectoryPath = getCurrentDirectory().getVirtualFile().getPath() + "/" + templatePackagePath;
@@ -214,7 +214,7 @@ public class DemoCodeCopyAction extends AnAction {
             Matcher matcher = compile("public \\w+ (\\S+)").matcher(fileTemplateText);
             if (matcher.find()) {
                 String group = matcher.group(1);
-                String className = group.replace("${DOMAIN}", domain);
+                String className = group.replace("${DOMAIN}", Optional.ofNullable(templateParamMap.get("DOMAIN")).orElse(""));
                 createJavaFileInfo.setClassName(className);
             }
             return createJavaFileInfo;
@@ -238,7 +238,7 @@ public class DemoCodeCopyAction extends AnAction {
      *
      * @return demo代码配置
      */
-    private DemoCodeConfig getDemoCodeConfig() {
+    private TemplateCodeConfig getTemplateCodeConfig() {
         try {
             StringBuilder demoCodeConfigJsonString = new StringBuilder();
             InputStream is = this.getClass().getClassLoader().getResourceAsStream("DemoCodeConfig.json");
@@ -249,8 +249,8 @@ public class DemoCodeCopyAction extends AnAction {
                 demoCodeConfigJsonString.append(s);
             }
             Gson gson = new Gson();
-            DemoCodeConfig demoCodeConfig = gson.fromJson(demoCodeConfigJsonString.toString(), DemoCodeConfig.class);
-            return demoCodeConfig;
+            TemplateCodeConfig templateCodeConfig = gson.fromJson(demoCodeConfigJsonString.toString(), TemplateCodeConfig.class);
+            return templateCodeConfig;
         } catch (IOException e) {
             throw new IllegalArgumentException("获取配置文件出错", e);
         }

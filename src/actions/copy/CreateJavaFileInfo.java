@@ -2,6 +2,7 @@ package actions.copy;
 
 import com.intellij.openapi.fileTypes.StdFileTypes;
 
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -12,13 +13,10 @@ import java.util.Optional;
  */
 public class CreateJavaFileInfo {
 
+    /**
+     * 创建的java文件的路径
+     */
     private String createDirectoryPath;
-
-    private String domain;
-
-    private String domainLowercase;
-
-    private String description;
 
     /**
      * 创建的包名，不包含模板的包名
@@ -40,28 +38,17 @@ public class CreateJavaFileInfo {
      */
     private String fileName;
 
+    /**
+     * 模板参数
+     */
+    private Map<String, String> templateParamMap;
+
     public String getCreateDirectoryPath() {
         return createDirectoryPath;
     }
 
     public void setCreateDirectoryPath(String createDirectoryPath) {
         this.createDirectoryPath = createDirectoryPath;
-    }
-
-    public String getDomain() {
-        return domain;
-    }
-
-    public void setDomain(String domain) {
-        this.domain = domain;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     public String getFileTemplateText() {
@@ -80,14 +67,6 @@ public class CreateJavaFileInfo {
         this.className = className;
     }
 
-    public String getDomainLowercase() {
-        return Optional.ofNullable(domainLowercase).orElse(getDomain().toLowerCase());
-    }
-
-    public void setDomainLowercase(String domainLowercase) {
-        this.domainLowercase = domainLowercase;
-    }
-
     public String getFileName() {
         return Optional.ofNullable(fileName).orElse(getClassName() + "." + StdFileTypes.JAVA.getDefaultExtension());
     }
@@ -102,5 +81,13 @@ public class CreateJavaFileInfo {
 
     public void setRootPackageName(String rootPackageName) {
         this.rootPackageName = rootPackageName;
+    }
+
+    public Map<String, String> getTemplateParamMap() {
+        return templateParamMap;
+    }
+
+    public void setTemplateParamMap(Map<String, String> templateParamMap) {
+        this.templateParamMap = templateParamMap;
     }
 }
